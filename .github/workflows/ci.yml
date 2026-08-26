@@ -1,0 +1,33 @@
+name: CI
+
+# Trigger: run on every push and on every pull request
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout: clone the repo at this commit into the runner
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      # Dependency install
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      # Test
+      - name: Run pytest
+        run: pytest -v
