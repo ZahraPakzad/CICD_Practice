@@ -9,7 +9,7 @@ on:
 
 jobs:
   lint:
-    name: Lint
+    name: Lint (pre-commit)
     runs-on: ubuntu-latest
 
     steps:
@@ -22,11 +22,10 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
-      - name: Install ruff
-        run: pip install ruff==0.6.9
-
-      - name: Run ruff check
-        run: ruff check .
+      # Runs every hook defined in .pre-commit-config.yaml —
+      # the same checks you'd run locally before committing.
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@v3.0.1
 
   test:
     name: Test (Python ${{ matrix.python-version }})
