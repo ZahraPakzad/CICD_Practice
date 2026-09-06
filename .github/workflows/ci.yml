@@ -20,7 +20,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
 
       # Runs every hook defined in .pre-commit-config.yaml —
       # the same checks you'd run locally before committing.
@@ -55,3 +54,37 @@ jobs:
       # Test
       - name: Run pytest
         run: python -m pytest -v
+
+  build:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    # Only runs if BOTH lint and every matrix leg of test succeed
+    needs: [lint, test]
+    # Don't publish images from random PRs — only from main
+    if: github.ref == 'refs/heads/main'
+
+    # Grants this job permission to push to GHCR using the
+    # auto-generated GITHUB_TOKEN — no manual secret needed
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}:latest
