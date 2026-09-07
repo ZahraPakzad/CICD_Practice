@@ -80,8 +80,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set lowercase repository name
-        id: repo
+      # github.repository preserves the repo's actual casing
+      # (e.g. "ZahraPakzad/CICD_Practice"), but registries require
+      # lowercase image names — so compute a lowercase version here
+      # and reuse it via $GITHUB_OUTPUT.
+      - name: Set lowercase image name
+        id: image
         run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build and push image
@@ -90,19 +94,40 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ steps.repo.outputs.name }}:${{ github.sha }}
-            ghcr.io/${{ steps.repo.outputs.name }}:latest
-  
-  deploy:
+            ghcr.io/${{ steps.image.outputs.name }}:${{ github.sha }}
+            ghcr.io/${{ steps.image.outputs.name }}:latest
+
+  deploy-staging:
     name: Deploy to Render (staging)
     runs-on: ubuntu-latest
     # Only runs after the image has been successfully built and pushed
     needs: build
     environment: staging
 
-    steps: 
+    steps:
       # Hitting the deploy hook tells Render: "pull the latest image
       # and redeploy" — Render itself pulls from GHCR, we don't push
       # anything to Render directly from here.
       - name: Trigger Render deploy hook
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
+
+  deploy-prod:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    # Only runs after staging has successfully redeployed
+    needs: deploy-staging
+    # Referencing the "production" environment is what makes this job
+    # pause here: GitHub checks that environment's protection rules
+    # before letting the job start, and since we added a required
+    # reviewer, the job sits in a "Waiting" state until someone with
+    # approval rights clicks Approve in the Actions run page.
+    environment: production
+
+    steps:
+      # In a real setup this would hit a *separate* deploy hook
+      # pointing at a distinct production Render service. We're
+      # reusing the same one here since this is a single practice
+      # app — the point of this job is the approval gate itself,
+      # not a second live environment.
+      - name: Trigger production deploy
         run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
