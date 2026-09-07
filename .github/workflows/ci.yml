@@ -92,3 +92,17 @@ jobs:
           tags: |
             ghcr.io/${{ steps.repo.outputs.name }}:${{ github.sha }}
             ghcr.io/${{ steps.repo.outputs.name }}:latest
+  
+  deploy:
+    name: Deploy to Render (staging)
+    runs-on: ubuntu-latest
+    # Only runs after the image has been successfully built and pushed
+    needs: build
+    environment: staging
+
+    steps: 
+      # Hitting the deploy hook tells Render: "pull the latest image
+      # and redeploy" — Render itself pulls from GHCR, we don't push
+      # anything to Render directly from here.
+      - name: Trigger Render deploy hook
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
